@@ -1,48 +1,51 @@
 import './dotConfig';
 import axios from 'axios';
 import cheerio from 'cheerio';
-import {
-  ShippingCompany,
-  ShippingResultCrawler,
-} from './classes/ShippingResultCrawler';
+import { getPostOfficeDeliveryInfo } from './lib/shipping/postOffice';
+import { getLotteDeliveryInfo } from './lib/shipping/lotte';
+import { getHanjinDeliveryInfo } from './lib/shipping/hanjin';
+import { getLogenDeliveryInfo } from './lib/shipping/logen';
+
+type ShippingCompany =
+  | 'CJ_DAEHAN'
+  | 'LOGEN'
+  | 'POST_OFFICE'
+  | 'HANJIN'
+  | 'LOTTE';
+
+type ShippingInfo = {
+  company: ShippingCompany;
+  number: string;
+};
 
 async function main() {
-  // const testShippingDatas = JSON.parse(process.env.TEST_SHIPPING_DATAS);
-  // for (const testShippingData of testShippingDatas) {
-  if (!process.env.TEST_SHIPPING_DATA1) {
+  if (!process.env.TEST_SHIPPING_DATA4) {
     throw new Error(`테스트 데이터가 없습니다.`);
   }
 
-  const { company, number } = JSON.parse(process.env.TEST_SHIPPING_DATA1!);
-
-  console.log(company, number);
-
-  const shippingResultCrawler = new ShippingResultCrawler();
-
-  const url = shippingResultCrawler.getCrawlUrlByCompanyAndNumber(
-    company,
-    number
+  const { company, number }: ShippingInfo = JSON.parse(
+    process.env.TEST_SHIPPING_DATA4!
   );
 
-  const shippingCompleteWord =
-    shippingResultCrawler.getShippingCompleteWordByCompany(company);
-
-  try {
-    const { data: html } = await axios.get(url);
-
-    const $ = cheerio.load(html, { decodeEntities: false });
-
-    const isShippingComplete = shippingResultCrawler.checkShippingComplete(
-      $,
-      company,
-      shippingCompleteWord
-    );
-
-    console.log({ isShippingComplete });
-  } catch (error: any) {
-    throw new Error(error.message);
+  let deliveryInfo: { url: string; finished: boolean };
+  switch (company) {
+    case 'POST_OFFICE':
+      deliveryInfo = await getPostOfficeDeliveryInfo(number);
+      break;
+    case 'LOTTE':
+      deliveryInfo = await getLotteDeliveryInfo(number);
+      break;
+    case 'HANJIN':
+      deliveryInfo = await getHanjinDeliveryInfo(number);
+      break;
+    case 'LOGEN':
+      deliveryInfo = await getLogenDeliveryInfo(number);
+      break;
+    default:
+      throw new Error('처리할 수 없는 택배사입니다.');
   }
-  // }
+
+  console.log(deliveryInfo);
 }
 
 main()
